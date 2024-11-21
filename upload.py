@@ -7,6 +7,9 @@ import re
 import json
 import boto3
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
@@ -100,64 +103,68 @@ def process_text_and_save(text):
 
 # Function to upload a text file and append to vault.txt
 def upload_txtfile():
+    """
+    Lit un fichier texte depuis le système local, nettoie le texte et l'ajoute à vault.txt.
+    """
     file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
     if file_path:
         with open(file_path, 'r', encoding="utf-8") as txt_file:
             text = txt_file.read()
             
-            # Normalize whitespace and clean up text
+            # Normalise les espaces et nettoie le texte
             text = re.sub(r'\s+', ' ', text).strip()
             
-            # Split text into chunks by sentences, respecting a maximum chunk size
+            # Découpe le texte en chunks par phrases, en respectant une taille maximale
             sentences = re.split(r'(?<=[.!?]) +', text)  # split on spaces following sentence-ending punctuation
             chunks = []
             current_chunk = ""
             for sentence in sentences:
-                # Check if the current sentence plus the current chunk exceeds the limit
-                if len(current_chunk) + len(sentence) + 1 < 1000:  # +1 for the space
+                # Vériﬁer si la phrase actuelle plus le chunk actuel dépasse la limite
+                if len(current_chunk) + len(sentence) + 1 < 1000: 
                     current_chunk += (sentence + " ").strip()
                 else:
-                    # When the chunk exceeds 1000 characters, store it and start a new one
+                    # Quand le chunk dépasse 1000 caractères, le stocker et en commencer un nouveau
                     chunks.append(current_chunk)
                     current_chunk = sentence + " "
-            if current_chunk:  # Don't forget the last chunk!
+            if current_chunk: 
                 chunks.append(current_chunk)
             with open("vault.txt", "a", encoding="utf-8") as vault_file:
                 for chunk in chunks:
-                    # Write each chunk to its own line
                     vault_file.write(chunk.strip() + "\n")  # Two newlines to separate chunks
             print(f"Text file content appended to vault.txt with each chunk on a separate line.")
 
-# Function to upload a JSON file and append to vault.txt
+
 def upload_jsonfile():
+    """
+    Lit un fichier JSON depuis le système local, aplati les données et les ajoute à vault.txt.
+    """
     file_path = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")])
     if file_path:
         with open(file_path, 'r', encoding="utf-8") as json_file:
             data = json.load(json_file)
             
-            # Flatten the JSON data into a single string
+            # Applatissement des données JSON en texte
             text = json.dumps(data, ensure_ascii=False)
             
             # Normalize whitespace and clean up text
             text = re.sub(r'\s+', ' ', text).strip()
             
-            # Split text into chunks by sentences, respecting a maximum chunk size
+            # Découpe le texte en chunks par phrases, en respectant une taille maximales
             sentences = re.split(r'(?<=[.!?]) +', text)  # split on spaces following sentence-ending punctuation
             chunks = []
             current_chunk = ""
             for sentence in sentences:
-                # Check if the current sentence plus the current chunk exceeds the limit
+                # Vérifier si la phrase actuelle plus le chunk actuel dépasse la limite
                 if len(current_chunk) + len(sentence) + 1 < 1000:  # +1 for the space
                     current_chunk += (sentence + " ").strip()
                 else:
-                    # When the chunk exceeds 1000 characters, store it and start a new one
+                    # Quand le chunk dépasse 1000 caractères, le stocker et en commencer un nouveau
                     chunks.append(current_chunk)
                     current_chunk = sentence + " "
-            if current_chunk:  # Don't forget the last chunk!
+            if current_chunk:  
                 chunks.append(current_chunk)
             with open("vault.txt", "a", encoding="utf-8") as vault_file:
                 for chunk in chunks:
-                    # Write each chunk to its own line
                     vault_file.write(chunk.strip() + "\n")  # Two newlines to separate chunks
             print(f"JSON file content appended to vault.txt with each chunk on a separate line.")
             
@@ -225,7 +232,7 @@ txt_button.pack(pady=10)
 json_button = tk.Button(root, text="Upload JSON File", command=upload_jsonfile)
 json_button.pack(pady=10)
 
-s3_button = tk.Button(root, text="Process PDF from S3", command=process_pdf_from_s3)
+s3_button = tk.Button(root, text="Process PDF S3", command=process_pdf_from_s3)
 s3_button.pack(pady=10)
 
 # Run the main event loop
