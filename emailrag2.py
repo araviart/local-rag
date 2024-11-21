@@ -51,7 +51,7 @@ def generate_embeddings(vault_content):
     embeddings = []
     for content in vault_content:
         try:
-            response = ollama.embeddings(model='mxbai-embed-large', prompt=content)
+            response = ollama.embeddings(model='llama3.2', prompt=content)
             embeddings.append(response["embedding"])
         except Exception as e:
             print(f"Error generating embeddings: {str(e)}")
@@ -70,7 +70,7 @@ def get_relevant_context(rewritten_input, vault_embeddings, vault_content, top_k
     if vault_embeddings.nelement() == 0:
         return []
     try:
-        input_embedding = ollama.embeddings(model='mxbai-embed-large', prompt=rewritten_input)["embedding"]
+        input_embedding = ollama.embeddings(model='llama3.2', prompt=rewritten_input)["embedding"]
         cos_scores = torch.cosine_similarity(torch.tensor(input_embedding).unsqueeze(0), vault_embeddings)
         top_k = min(top_k, len(cos_scores))
         top_indices = torch.topk(cos_scores, k=top_k)[1].tolist()

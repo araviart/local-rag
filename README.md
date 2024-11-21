@@ -5,8 +5,8 @@
 2. cd dir
 3. pip install -r requirements.txt
 4. Install Ollama (https://ollama.com/download)
-5. ollama pull llama3 (etc)
-6. ollama pull mxbai-embed-large
+5. ollama pull llama3.2 (etc)
+6. ollama pull llama3.2
 7. run upload.py (pdf, .txt, JSON)
 8. run localrag.py (with query re-write)
 9. run localrag_no_rewrite.py (no query re-write)
@@ -16,8 +16,8 @@
 2. cd dir
 3. pip install -r requirements.txt
 4. Install Ollama (https://ollama.com/download)
-5. ollama pull llama3 (etc)
-6. ollama pull mxbai-embed-large
+5. ollama pull llama3.2 (etc)
+6. ollama pull llama3.2
 7. set YOUR email logins in .env (for gmail create app password (video))
 9. python collect_emails.py to download your emails
 10. python emailrag2.py to talk to your emails
@@ -26,8 +26,8 @@
 - Added Email RAG Support (v1.3)
 - Upload.py (v1.2)
    - replaced /n/n with /n 
-- New embeddings model mxbai-embed-large from ollama (1.2)
+- New embeddings model llama3.2 from ollama (1.2)
 - Rewrite query function to improve retrival on vauge questions (1.2)
 - Pick your model from the CLI (1.1)
-  - python localrag.py --model mistral (llama3 is default) 
+  - python localrag.py --model mistral (llama3.2 is default) 
 - Talk in a true loop with conversation history (1.1)
