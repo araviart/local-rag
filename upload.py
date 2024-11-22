@@ -192,38 +192,17 @@ def read_pdf_from_s3(bucket_name, s3_key):
         messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
         return None
 
-# Interface utilisateur
-upload_frame = ttk.Frame(root, padding=20)
-upload_frame.pack(fill="x")
-
-s3_frame = ttk.Frame(root, padding=20)
-s3_frame.pack(fill="x")
-
-# Boutons d'action
-ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
-ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
-ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
-ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
-
-# Lancer la boucle principale
-root.mainloop()
-
-# Fonction pour lire un fichier (PDF) depuis S3
-def read_pdf_from_s3(bucket_name, s3_key):
-    """Lit et extrait le texte d'un fichier PDF stocké dans S3."""
-    try:
-        response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-        pdf_file = response['Body'].read()
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_file))
-        text = ""
-        for page in pdf_reader.pages:
-            if page.extract_text():
-                text += page.extract_text() + " "
-        return text
-    except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
-        return None
-
+# Fonction pour télécharger un fichier local sur S3
+def upload_file_to_s3():
+    """Télécharge un fichier local sur S3."""
+    file_path = filedialog.askopenfilename(filetypes=[("Tous les fichiers", "*.*")])
+    if file_path:
+        try:
+            file_name = os.path.basename(file_path)
+            s3_client.upload_file(file_path, BUCKET_NAME, file_name)
+            messagebox.showinfo("Succès", f"Le fichier '{file_name}' a été téléchargé sur S3.")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors du téléchargement du fichier sur S3 : {e}")
 
 # Interface utilisateur
 upload_frame = ttk.Frame(root, padding=20)
@@ -236,40 +215,7 @@ s3_frame.pack(fill="x")
 ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
 ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
 ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
-ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
-
-# Lancer la boucle principale
-root.mainloop()
-
-
-# Fonction pour lire un fichier (PDF) depuis S3
-def read_pdf_from_s3(bucket_name, s3_key):
-    """Lit et extrait le texte d'un fichier PDF stocké dans S3."""
-    try:
-        response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-        pdf_file = response['Body'].read()
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_file))
-        text = ""
-        for page in pdf_reader.pages:
-            if page.extract_text():
-                text += page.extract_text() + " "
-        return text
-    except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
-        return None
-
-
-# Interface utilisateur
-upload_frame = ttk.Frame(root, padding=20)
-upload_frame.pack(fill="x")
-
-s3_frame = ttk.Frame(root, padding=20)
-s3_frame.pack(fill="x")
-
-# Boutons d'action
-ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
-ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
-ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier sur S3", command=upload_file_to_s3).pack(pady=5)
 ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
 
 # Lancer la boucle principale
