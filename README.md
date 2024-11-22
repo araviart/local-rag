@@ -1,6 +1,6 @@
 # Local RAG with Ollama
 
-### Installation
+# Installation
 
 1. git clone https://github.com/araviart/local-rag.git
 2. cd dir
@@ -8,7 +8,7 @@
 4. Installer Ollama (https://ollama.com/download)
 5. ollama pull llama3.2
 
-#### Configuration du bucket S3
+## Configuration du bucket S3
 
 Créez un bucket S3 et chargez vos fichiers pdf dessus, créez un utilisateur avec les droits admin ( le code utilise s3:ListBucket et ListObjectV2 ).
 Créez un fichier .env à la racine du projet, en complétant les informations ci-joints : 
@@ -20,12 +20,12 @@ BUCKET_NAME = "#"
 REGION_NAME = "#" 
 ```
 
-#### Lancement : 
+## Lancement : 
 
 6. python upload.py
 7. python localrag.py
 
-### Fonctionnalité 
+## Fonctionnalité 
 
 - Téléchargement de fichiers locaux sur S3 :
 
@@ -41,7 +41,7 @@ REGION_NAME = "#"
 
 - Permet de sélectionner un fichier PDF depuis un bucket S3, d'extraire le texte et de l'ajouter à vault.txt.
 
-### Paramètres du prompt
+## Paramètres du prompt
 
 Liste non-exhaustive de paramètres que j'ai trouvé pertinent :
 
@@ -93,7 +93,7 @@ En l'occurence, à chaque itération, la requête de l'utilisateur (user_input) 
 Une fois la réponse générée par l'assistant, celle-ci est ajoutée à conversation_history avec un rôle assistant.
 Cela permet au modèle d’utiliser l’historique de la conversation pour produire des réponses contextuelles.
 
-### Bibliothèques utilisées
+## Bibliothèques utilisées
 
 - torch : Une bibliothèque de calcul scientifique pour Python qui permet de créer des réseaux de neurones profonds et d'effectuer des calculs tensoriels avec accélération GPU.
 - PyPDF2 : Une bibliothèque pure Python pour manipuler des fichiers PDF, permettant de lire, extraire du texte, fusionner, diviser et modifier des fichiers PDF.
@@ -103,3 +103,9 @@ Cela permet au modèle d’utiliser l’historique de la conversation pour produ
 - lxml : Une bibliothèque pour traiter des fichiers XML et HTML, offrant des performances élevées et une compatibilité avec XPath et XSLT.
 - python-dotenv : Une bibliothèque pour lire les variables d'environnement à partir du fichier .env 
 - ttkbootstrap : Une bibliothèque pour créer des interfaces utilisateur modernes et élégantes en utilisant les widgets ttk de Tkinter avec des thèmes Bootstrap.
+
+## TODO
+
+Intégration avec d'autres services cloud :
+
+Étendre la compatibilité pour inclure d'autres services de stockage cloud tels que Google Drive, Dropbox, et OneDrive.
