@@ -1,22 +1,26 @@
 import io
 import os
-import tkinter as tk
-from tkinter import filedialog
-import PyPDF2
 import re
 import json
 import boto3
-import os
+import tkinter as tk
+from tkinter import filedialog, ttk
+from tkinter import messagebox
 from dotenv import load_dotenv
+from ttkbootstrap import Style  # Importation de ttkbootstrap pour une interface moderne
+from ttkbootstrap.constants import *
+import PyPDF2
 
+# Charger les variables d'environnement
 load_dotenv()
 
+# Configuration AWS
 AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 REGION_NAME = os.getenv("REGION_NAME")
 
-# Client S3
+# Initialisation du client S3
 s3_client = boto3.client(
     "s3",
     aws_access_key_id=AWS_ACCESS_KEY,
@@ -24,29 +28,157 @@ s3_client = boto3.client(
     region_name=REGION_NAME
 )
 
+# Création de la fenêtre principale avec ttkbootstrap
+style = Style(theme="superhero")  # Utilisation du thème moderne "superhero"
+root = style.master
+root.title("Traitement de fichiers")
+root.geometry("600x400")  # Taille de la fenêtre principale
 
+# Barre de progression
+progress = ttk.Progressbar(root, orient="horizontal", length=400, mode="indeterminate")
+
+# Fonction pour extraire le texte d'un PDF local
 def convert_pdf_to_text():
-    """
-    Lit un PDF depuis le système local, extrait le texte et l'enregistre dans vault.txt.
-    """
-    file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+    """Traitement d'un PDF local et extraction du texte."""
+    file_path = filedialog.askopenfilename(filetypes=[("Fichiers PDF", "*.pdf")])
     if file_path:
-        with open(file_path, 'rb') as pdf_file:
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            text = ""
-            for page in pdf_reader.pages:
-                if page.extract_text():
-                    text += page.extract_text() + " "
-            process_text_and_save(text)
-            
-            
+        progress.start()  # Démarrage de la barre de progression
+        try:
+            with open(file_path, 'rb') as pdf_file:
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                text = ""
+                for page in pdf_reader.pages:
+                    if page.extract_text():
+                        text += page.extract_text() + " "
+                process_text_and_save(text)
+            messagebox.showinfo("Succès", "Le texte du PDF a été ajouté à vault.txt.")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors du traitement du PDF : {e}")
+        finally:
+            progress.stop()  # Arrêt de la barre de progression
+
+# Fonction pour traiter le texte extrait et le sauvegarder
+def process_text_and_save(text):
+    """Découper et sauvegarder le texte en petits morceaux."""
+    text = re.sub(r'\s+', ' ', text).strip()  # Normalisation des espaces
+    sentences = re.split(r'(?<=[.!?]) +', text)  # Découpage en phrases
+    chunks = []
+    current_chunk = ""
+
+    # Découpage du texte en morceaux de taille maximale
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) + 1 < 1000:  # Limite de 1000 caractères
+            current_chunk += (sentence + " ").strip()
+        else:
+            chunks.append(current_chunk)
+            current_chunk = sentence + " "
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    # Sauvegarde des morceaux dans le fichier vault.txt
+    with open("vault.txt", "a", encoding="utf-8") as vault_file:
+        for chunk in chunks:
+            vault_file.write(chunk.strip() + "\n")
+
+# Fonction pour traiter un fichier texte local
+def upload_txtfile():
+    """Traitement d'un fichier texte local et ajout à vault.txt."""
+    file_path = filedialog.askopenfilename(filetypes=[("Fichiers Texte", "*.txt")])
+    if file_path:
+        progress.start()  # Démarrage de la barre de progression
+        try:
+            with open(file_path, 'r', encoding="utf-8") as txt_file:
+                text = txt_file.read()
+                process_text_and_save(text)
+            messagebox.showinfo("Succès", "Le contenu du fichier texte a été ajouté à vault.txt.")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors du traitement du fichier texte : {e}")
+        finally:
+            progress.stop()  # Arrêt de la barre de progression
+
+# Fonction pour traiter un fichier JSON local
+def upload_jsonfile():
+    """Traitement d'un fichier JSON local et ajout à vault.txt."""
+    file_path = filedialog.askopenfilename(filetypes=[("Fichiers JSON", "*.json")])
+    if file_path:
+        progress.start()  # Démarrage de la barre de progression
+        try:
+            with open(file_path, 'r', encoding="utf-8") as json_file:
+                data = json.load(json_file)
+                text = json.dumps(data, ensure_ascii=False)  # Conversion des données JSON en texte
+                process_text_and_save(text)
+            messagebox.showinfo("Succès", "Le contenu du fichier JSON a été ajouté à vault.txt.")
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors du traitement du fichier JSON : {e}")
+        finally:
+            progress.stop()  # Arrêt de la barre de progression
+
+# Fonction pour lister les fichiers d'un bucket S3
+def list_files_in_s3(bucket_name):
+    """Liste les fichiers dans un bucket S3 spécifié."""
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name)
+        if 'Contents' in response:
+            return [item['Key'] for item in response['Contents']]
+        else:
+            return []
+    except Exception as e:
+        messagebox.showerror("Erreur", f"Erreur lors de la récupération des fichiers S3 : {e}")
+        return []
+
+# Fonction pour traiter un PDF depuis un bucket S3
+def process_pdf_from_s3():
+    """Permet de sélectionner et traiter un fichier depuis S3."""
+    files = list_files_in_s3(BUCKET_NAME)  # Récupération des fichiers S3
+    if not files:
+        messagebox.showwarning("Aucun fichier", "Aucun fichier trouvé dans le bucket S3.")
+        return
+
+    # Fenêtre secondaire pour sélectionner un fichier S3
+    s3_window = tk.Toplevel(root)
+    s3_window.title("Sélectionner un fichier S3")
+    s3_window.geometry("400x400")
+
+    search_var = tk.StringVar()
+    tk.Entry(s3_window, textvariable=search_var, width=40).pack(pady=10)
+
+    def search_files():
+        query = search_var.get().lower()
+        filtered_files = [f for f in files if query in f.lower()]
+        update_treeview(filtered_files)
+
+    ttk.Button(s3_window, text="Rechercher", command=search_files).pack(pady=5)
+
+    # Arbre pour afficher les fichiers disponibles
+    tree = ttk.Treeview(s3_window, columns=("Nom du fichier",), show="headings")
+    tree.heading("Nom du fichier", text="Nom du fichier")
+    tree.pack(pady=10, fill="both", expand=True)
+
+    def update_treeview(file_list):
+        tree.delete(*tree.get_children())
+        for file in file_list:
+            tree.insert("", "end", values=(file,))
+
+    update_treeview(files)
+
+    def on_load():
+        """Charger et traiter le fichier sélectionné depuis S3."""
+        selected_item = tree.focus()
+        if selected_item:
+            file_key = tree.item(selected_item)["values"][0]
+            text = read_pdf_from_s3(BUCKET_NAME, file_key)
+            if text:
+                process_text_and_save(text)
+                messagebox.showinfo("Succès", f"Le contenu du fichier '{file_key}' a été ajouté à vault.txt.")
+                s3_window.destroy()
+            else:
+                messagebox.showerror("Erreur", "Impossible de charger le fichier.")
+
+    ttk.Button(s3_window, text="Charger le fichier", command=on_load).pack(pady=10)
+
+# Fonction pour lire un fichier (PDF) depuis S3
 def read_pdf_from_s3(bucket_name, s3_key):
-    """
-    Lit un PDF depuis S3, extrait le texte et le retourne.
-    :param bucket_name: Nom du bucket S3.
-    :param s3_key: Clé du fichier dans le bucket S3.
-    :return: Texte brut extrait du PDF ou None en cas d'erreur.
-    """
+    """Lit et extrait le texte d'un fichier PDF stocké dans S3."""
     try:
         response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
         pdf_file = response['Body'].read()
@@ -57,183 +189,88 @@ def read_pdf_from_s3(bucket_name, s3_key):
                 text += page.extract_text() + " "
         return text
     except Exception as e:
-        print(f"Erreur lors de la lecture du fichier PDF {s3_key} depuis S3: {e}")
+        messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
+        return None
+
+# Interface utilisateur
+upload_frame = ttk.Frame(root, padding=20)
+upload_frame.pack(fill="x")
+
+s3_frame = ttk.Frame(root, padding=20)
+s3_frame.pack(fill="x")
+
+# Boutons d'action
+ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
+ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
+
+# Lancer la boucle principale
+root.mainloop()
+
+# Fonction pour lire un fichier (PDF) depuis S3
+def read_pdf_from_s3(bucket_name, s3_key):
+    """Lit et extrait le texte d'un fichier PDF stocké dans S3."""
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+        pdf_file = response['Body'].read()
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_file))
+        text = ""
+        for page in pdf_reader.pages:
+            if page.extract_text():
+                text += page.extract_text() + " "
+        return text
+    except Exception as e:
+        messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
         return None
 
 
-def convert_pdf_from_s3_to_text(s3_key):
-    """
-    Lit un PDF depuis S3, extrait le texte et l'enregistre dans vault.txt.
-    :param s3_key: Clé du fichier dans le bucket S3.
-    """
-    text = read_pdf_from_s3(BUCKET_NAME, s3_key)
-    if text:
-        process_text_and_save(text)
-    else:
-        print("Erreur : Impossible de lire le contenu du PDF depuis S3.")
+# Interface utilisateur
+upload_frame = ttk.Frame(root, padding=20)
+upload_frame.pack(fill="x")
 
-            
-def process_text_and_save(text):
-    """
-    Divise le texte en chunks et les ajoute à vault.txt.
-    :param text: Texte brut extrait d'un PDF.
-    """
-    # Normaliser le texte
-    text = re.sub(r'\s+', ' ', text).strip()
-    
-    # Découper en phrases et chunks
-    sentences = re.split(r'(?<=[.!?]) +', text)
-    chunks = []
-    current_chunk = ""
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) + 1 < 1000:  # +1 pour l'espace
-            current_chunk += (sentence + " ").strip()
-        else:
-            chunks.append(current_chunk)
-            current_chunk = sentence + " "
-    if current_chunk:
-        chunks.append(current_chunk)
-    
-    # Écrire les chunks dans vault.txt
-    with open("vault.txt", "a", encoding="utf-8") as vault_file:
-        for chunk in chunks:
-            vault_file.write(chunk.strip() + "\n")
-    print(f"Le texte a été ajouté à vault.txt avec chaque chunk sur une ligne.")
+s3_frame = ttk.Frame(root, padding=20)
+s3_frame.pack(fill="x")
+
+# Boutons d'action
+ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
+ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
+
+# Lancer la boucle principale
+root.mainloop()
 
 
-# Function to upload a text file and append to vault.txt
-def upload_txtfile():
-    """
-    Lit un fichier texte depuis le système local, nettoie le texte et l'ajoute à vault.txt.
-    """
-    file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
-    if file_path:
-        with open(file_path, 'r', encoding="utf-8") as txt_file:
-            text = txt_file.read()
-            
-            # Normalise les espaces et nettoie le texte
-            text = re.sub(r'\s+', ' ', text).strip()
-            
-            # Découpe le texte en chunks par phrases, en respectant une taille maximale
-            sentences = re.split(r'(?<=[.!?]) +', text)  # split on spaces following sentence-ending punctuation
-            chunks = []
-            current_chunk = ""
-            for sentence in sentences:
-                # Vériﬁer si la phrase actuelle plus le chunk actuel dépasse la limite
-                if len(current_chunk) + len(sentence) + 1 < 1000: 
-                    current_chunk += (sentence + " ").strip()
-                else:
-                    # Quand le chunk dépasse 1000 caractères, le stocker et en commencer un nouveau
-                    chunks.append(current_chunk)
-                    current_chunk = sentence + " "
-            if current_chunk: 
-                chunks.append(current_chunk)
-            with open("vault.txt", "a", encoding="utf-8") as vault_file:
-                for chunk in chunks:
-                    vault_file.write(chunk.strip() + "\n")  # Two newlines to separate chunks
-            print(f"Text file content appended to vault.txt with each chunk on a separate line.")
-
-
-def upload_jsonfile():
-    """
-    Lit un fichier JSON depuis le système local, aplati les données et les ajoute à vault.txt.
-    """
-    file_path = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")])
-    if file_path:
-        with open(file_path, 'r', encoding="utf-8") as json_file:
-            data = json.load(json_file)
-            
-            # Applatissement des données JSON en texte
-            text = json.dumps(data, ensure_ascii=False)
-            
-            # Normalize whitespace and clean up text
-            text = re.sub(r'\s+', ' ', text).strip()
-            
-            # Découpe le texte en chunks par phrases, en respectant une taille maximales
-            sentences = re.split(r'(?<=[.!?]) +', text)  # split on spaces following sentence-ending punctuation
-            chunks = []
-            current_chunk = ""
-            for sentence in sentences:
-                # Vérifier si la phrase actuelle plus le chunk actuel dépasse la limite
-                if len(current_chunk) + len(sentence) + 1 < 1000:  # +1 for the space
-                    current_chunk += (sentence + " ").strip()
-                else:
-                    # Quand le chunk dépasse 1000 caractères, le stocker et en commencer un nouveau
-                    chunks.append(current_chunk)
-                    current_chunk = sentence + " "
-            if current_chunk:  
-                chunks.append(current_chunk)
-            with open("vault.txt", "a", encoding="utf-8") as vault_file:
-                for chunk in chunks:
-                    vault_file.write(chunk.strip() + "\n")  # Two newlines to separate chunks
-            print(f"JSON file content appended to vault.txt with each chunk on a separate line.")
-            
-from tkinter import simpledialog, ttk
-
-def process_pdf_from_s3():
-    """
-    Affiche une liste des fichiers S3 disponibles et traite le fichier sélectionné.
-    """
-    # Lister les fichiers dans le bucket S3
-    files = list_files_in_s3(BUCKET_NAME)
-    if not files:
-        print("Aucun fichier trouvé dans le bucket S3.")
-        return
-    
-    # Créer une fenêtre pour sélectionner le fichier
-    s3_window = tk.Toplevel(root)
-    s3_window.title("Sélectionner un fichier S3")
-
-    tk.Label(s3_window, text="Sélectionnez un fichier PDF dans S3 :").pack(pady=10)
-    selected_file = tk.StringVar(s3_window)
-
-    dropdown = ttk.Combobox(s3_window, textvariable=selected_file, values=files)
-    dropdown.pack(pady=10)
-
-    def on_confirm():
-        s3_key = selected_file.get()
-        if s3_key:
-            convert_pdf_from_s3_to_text(s3_key)
-            s3_window.destroy()
-    
-    tk.Button(s3_window, text="Confirmer", command=on_confirm).pack(pady=10)
-
-def list_files_in_s3(bucket_name):
-    """
-    Liste tous les fichiers dans un bucket S3.
-    :param bucket_name: Nom du bucket S3.
-    :return: Liste des clés des fichiers dans le bucket.
-    """
+# Fonction pour lire un fichier (PDF) depuis S3
+def read_pdf_from_s3(bucket_name, s3_key):
+    """Lit et extrait le texte d'un fichier PDF stocké dans S3."""
     try:
-        response = s3_client.list_objects_v2(Bucket=bucket_name)
-        if 'Contents' in response:
-            return [item['Key'] for item in response['Contents']]
-        else:
-            print("Aucun fichier trouvé dans le bucket.")
-            return []
+        response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+        pdf_file = response['Body'].read()
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_file))
+        text = ""
+        for page in pdf_reader.pages:
+            if page.extract_text():
+                text += page.extract_text() + " "
+        return text
     except Exception as e:
-        print(f"Erreur lors de la récupération des fichiers dans le bucket {bucket_name}: {e}")
-        return []
+        messagebox.showerror("Erreur", f"Erreur lors de la lecture du fichier S3 : {e}")
+        return None
 
 
-# Create the main window
-root = tk.Tk()
-root.title("Upload .pdf, .txt, or .json")
+# Interface utilisateur
+upload_frame = ttk.Frame(root, padding=20)
+upload_frame.pack(fill="x")
 
-# Create a button to open the file dialog for PDF
-pdf_button = tk.Button(root, text="Upload PDF", command=convert_pdf_to_text)
-pdf_button.pack(pady=10)
+s3_frame = ttk.Frame(root, padding=20)
+s3_frame.pack(fill="x")
 
-# Create a button to open the file dialog for text file
-txt_button = tk.Button(root, text="Upload Text File", command=upload_txtfile)
-txt_button.pack(pady=10)
+# Boutons d'action
+ttk.Button(upload_frame, text="Télécharger un PDF", command=convert_pdf_to_text).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier texte", command=upload_txtfile).pack(pady=5)
+ttk.Button(upload_frame, text="Télécharger un fichier JSON", command=upload_jsonfile).pack(pady=5)
+ttk.Button(s3_frame, text="Traiter un PDF depuis S3", command=process_pdf_from_s3).pack(pady=5)
 
-# Create a button to open the file dialog for JSON file
-json_button = tk.Button(root, text="Upload JSON File", command=upload_jsonfile)
-json_button.pack(pady=10)
-
-s3_button = tk.Button(root, text="Process PDF S3", command=process_pdf_from_s3)
-s3_button.pack(pady=10)
-
-# Run the main event loop
+# Lancer la boucle principale
 root.mainloop()

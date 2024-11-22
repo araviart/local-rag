@@ -58,7 +58,7 @@ def rewrite_query(user_input_json, conversation_history, ollama_model):
         messages=[{"role": "system", "content": prompt}],
         max_tokens=200,
         n=1,
-        temperature=0.1,
+        temperature=0.5,
     )
     rewritten_query = response.choices[0].message.content.strip()
     return json.dumps({"Rewritten Query": rewritten_query})
