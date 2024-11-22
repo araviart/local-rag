@@ -36,29 +36,29 @@ def get_relevant_context(rewritten_input, vault_embeddings, vault_content, top_k
 def rewrite_query(user_input_json, conversation_history, ollama_model):
     user_input = json.loads(user_input_json)["Query"]
     context = "\n".join([f"{msg['role']}: {msg['content']}" for msg in conversation_history[-2:]])
-    prompt = f"""Rewrite the following query by incorporating relevant context from the conversation history.
-    The rewritten query should:
+    prompt = f"""Réécrivez la requête suivante en incorporant le contexte pertinent de l'historique de la conversation.
+    La requête réécrite doit :
     
-    - Preserve the core intent and meaning of the original query
-    - Expand and clarify the query to make it more specific and informative for retrieving relevant context
-    - Avoid introducing new topics or queries that deviate from the original query
-    - DONT EVER ANSWER the Original query, but instead focus on rephrasing and expanding it into a new query
+    - Préserver l'intention et le sens de la requête originale
+    - Élargir et clarifier la requête pour la rendre plus spécifique et informative pour récupérer un contexte pertinent
+    - Éviter d'introduire de nouveaux sujets ou des requêtes qui dévient de la requête originale
+    - NE JAMAIS RÉPONDRE à la requête originale, mais se concentrer sur la reformulation et l'expansion en une nouvelle requête
     
-    Return ONLY the rewritten query text, without any additional formatting or explanations.
+    Retournez UNIQUEMENT le texte de la requête réécrite, sans aucun formatage ou explication supplémentaire.
     
-    Conversation History:
+    Historique de la conversation :
     {context}
     
-    Original query: [{user_input}]
+    Requête originale : [{user_input}]
     
-    Rewritten query: 
+    Requête réécrite : 
     """
     response = client.chat.completions.create(
         model=ollama_model,
         messages=[{"role": "system", "content": prompt}],
         max_tokens=200,
         n=1,
-        temperature=0.1,
+        temperature=0.5,
     )
     rewritten_query = response.choices[0].message.content.strip()
     return json.dumps({"Rewritten Query": rewritten_query})
